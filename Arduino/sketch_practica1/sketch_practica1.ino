@@ -2,68 +2,73 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 #include "LedControl.h"
-#include "juego.h"
+/*IMPORT GAME*/
+#include "snake.h"
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW
 
 
-//DEFINICION DE PINES
+/*PINES*/
 const int dirPin = 5;
 const int LowSpeedPin = 6;
 const int HighSpeedPin = 53;
 const int textMode = 7;
 const int startPin = 8;
-//BOTONES PARA JUEGO
+/*BUTTONS*/
 const int leftPin = 11;
 const int rightPin = 10;
 const int upPin = 12;
 const int downPin = 13;
 
-//MATRIZ
+/*MATRIX FOR TEXT*/
 MD_Parola displayMatrix = MD_Parola(HARDWARE_TYPE, DIN, CLK, LOAD, MAX_DEVICES);
-//MENSAJE A MOSTRAR
+/*MESSAGE*/
 const String message = "*TP1 - GRUPO 10 - SECCION A*";
 
-//VELOCIDAD DEL TEXTO
+/*TEXT SPEED*/
 int textSpeed;
-//TIEMPO DE ESPERA ENTRE LETRAS INDIVIDUALES
+/*WAITING TIME FOR INDIVIDUAL LETTERS*/
 int waitTime;
-//BANDERA DE CAMBIO DE TEXTO
+/*FLAG OF CHANGE FOR MAIN TEXT*/
 bool changeFlag;
-
+/*DIFFICULT OF THE GAME*/
+int difficult;
+/*GAME SPEED*/
+int speedGame;
+/*DIFFICULT SELECTED*/
+bool selectionDifficult;
+/*TIMERS FOR GAMEOVER TEXT*/
 int timer = 38;
 int timer2 = 2;
-
-
-
-//Contadores de tiempo
+/*TIME COUNTERS*/
 long CurrentTime;
 long Delimiter;
 
-//modo
+/*MODE (TEXT OR GAME)*/
 bool onGame;
 
-//TEXTO CON MOVIMIENTO
+/*SCROLL TEXT*/
 void mainText() {
+  /*INIT TEXT FOR SCROLLING*/
   if (changeFlag) {
     displayMatrix.displayText("*TP1 - GRUPO 10 - SECCION A*", PA_LEFT, 100, 0, PA_SCROLL_RIGHT, PA_SCROLL_RIGHT);
     changeFlag = false;
   }
-  //Modo de izquierda a derecha
+  /*LEFT SCROLL*/
   if (digitalRead(dirPin) == HIGH) {
     displayMatrix.setTextEffect(PA_SCROLL_LEFT, PA_SCROLL_LEFT);
     displayMatrix.setSpeed(map(textSpeed, 1023, 0, 400, 15));
   }
-  //Modo derecha a izquierda
+  /*RIGHT SCROLL*/
   else {
     displayMatrix.setTextEffect(PA_SCROLL_RIGHT, PA_SCROLL_RIGHT);
     displayMatrix.setSpeed(map(textSpeed, 1023, 0, 400, 15));
   }
-  //Se reinicia animacion
+  /*RESET ANIMATION*/
   if (displayMatrix.displayAnimate()) {
     displayMatrix.displayReset();
   }
 }
-//LETRAS INDIVIDUALES
+/*INDIVIDUAL LETTERS*/
 void individualLetter() {
   int i = 0;
   int j = 0;
@@ -154,7 +159,7 @@ void individualLetterG2() {
     delay(2000);
   }
 }
-//CONFIGURA LA VELOCIDAD
+/*SETUP SPEED*/
 void setupSpeed() {
   if (digitalRead(LowSpeedPin) == LOW) {
     textSpeed = 150;
@@ -165,7 +170,7 @@ void setupSpeed() {
     waitTime = 250;
   }
 }
-
+/*SELECTION OF THE MODE THAT IS PRESENTED THE TEXT*/
 void moveText() {
   if (digitalRead(textMode) == HIGH) {
     individualLetter();
@@ -174,7 +179,7 @@ void moveText() {
     mainText();
   }
 }
-
+/*SNAKE GAME INIT*/
 void gameMode() {
   if (digitalRead(startPin) == HIGH) {
     changeToTextMode();
@@ -186,7 +191,7 @@ void gameMode() {
   if (!gameover) {
     draw();
     elapsedTime += currentTime - previousTime;
-    if (elapsedTime > 500) {
+    if (elapsedTime > speedGame) {
       move();
       eat();
       checkGameover();
@@ -209,6 +214,7 @@ void gameMode() {
     if (gameover2 != 1) {
       String gameOverText = "GAME OVER SCORE: " + String(score);
       individualLetterG(gameOverText, waitTime);
+      selectionDifficult = false;
       gameover2 = 1;
     }
     if (currentTime % 800 > 400) {
@@ -251,6 +257,9 @@ void setup() {
   Delimiter = 0;
 
   onGame = false;
+  difficult = 1;
+  speedGame = 400;
+  selectionDifficult = false;
 
 }
 
@@ -275,7 +284,51 @@ void changeToTextMode() {
   }
 }
 
+void quitGameDifficult() {
+  if (CurrentTime - Delimiter >= 3000) {
+    Delimiter = millis();
+    CurrentTime = millis();
+    onGame = false;
+    loop();
+  } else {
+    CurrentTime = millis();
+  }
+}
+void selectDifficult() {
+  displayMatrix.displayReset();
+  displayMatrix.setTextAlignment(PA_CENTER);
+  while (!selectionDifficult) {
+    if (digitalRead(startPin) == HIGH) {
+      quitGameDifficult();
+    }else{
+      Delimiter = millis();
+      CurrentTime = millis();
+    }
+    displayMatrix.print("0 " + String(difficult));
+    delay(200);
+    if (digitalRead(upPin) == HIGH) {
+      difficult++;
+      speedGame = speedGame - 100;
+    } else if (digitalRead(downPin) == HIGH) {
+      difficult--;
+      speedGame = speedGame + 100;
+    }
+    if (difficult > 4) {
+      difficult = 1;
+      speedGame = 400;
+    } else if (difficult < 1) {
+      difficult = 4;
+      speedGame = 100;
+    }
+    displayMatrix.displayClear();
+    Serial.println(difficult);
+    if (digitalRead(rightPin) == HIGH) {
+      selectionDifficult = true;
+      return;
+    }
+  }
 
+}
 void loop() {
   setupSpeed();
   if (digitalRead(startPin) == HIGH) {
@@ -289,6 +342,7 @@ void loop() {
     CurrentTime = millis();
   }
   if (onGame) {
+    selectDifficult();
     gameMode();
   } else {
     moveText();
