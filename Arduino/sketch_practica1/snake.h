@@ -50,14 +50,19 @@ void setPixel(int row, int column) {
     return;
   }
   /*LIMIT OF WIDTH*/
-  if (column == 8 and cambio == false) {
-    gameover2 = 0;
-    gameover = GAME_OVER_TIME;
-    return;
+ if (column == 8 and cambio == false) {
+    if(body[head].x ==8){
+      gameover2 = 0;
+      gameover = GAME_OVER_TIME;
+      return;
+    }
+
   } else if (column == 7 and cambio == true) {
-    gameover2 = 0;
-    gameover = GAME_OVER_TIME;
-    return;
+    if(body[head].x ==7){
+      gameover2 = 0;
+      gameover = GAME_OVER_TIME;
+      return;
+    }
   }
   /*CHANGE OF MATRIX (ALREADY 2 MATRIX IN THE DRIVER)*/
   if (column < 8 ) {
@@ -67,7 +72,7 @@ void setPixel(int row, int column) {
   else {
     lc.setLed(1, row, column - 8, true);
     cambio = true;
-  }
+  }   
 }
 /*CHECK IF THE POSITION OF FOOD IS CORRECTLY SPAWN*/
 bool foodPositionIsValid() {

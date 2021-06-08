@@ -212,10 +212,14 @@ void gameMode() {
   }
   else {
     if (gameover2 != 1) {
-      String gameOverText = "GAME OVER SCORE: " + String(score);
-      individualLetterG(gameOverText, waitTime);
       selectionDifficult = false;
       gameover2 = 1;
+      delay(200);
+      String gameOverText = "GAME OVER SCORE: " + String(score);
+      individualLetterG(gameOverText, waitTime);
+      Serial.println(selectionDifficult);
+      Serial.println(gameover2);
+      Serial.println(gameover);
     }
     if (currentTime % 800 > 400) {
       draw();
@@ -295,15 +299,15 @@ void quitGameDifficult() {
   }
 }
 void selectDifficult() {
-  displayMatrix.displayReset();
-  displayMatrix.setTextAlignment(PA_CENTER);
+  if(!selectionDifficult) delay(1000);
   while (!selectionDifficult) {
-    if (digitalRead(startPin) == HIGH) {
+    displayMatrix.setTextAlignment(PA_CENTER);
+    /*if (digitalRead(startPin) == HIGH) {
       quitGameDifficult();
     }else{
       Delimiter = millis();
       CurrentTime = millis();
-    }
+    }*/
     displayMatrix.print("0 " + String(difficult));
     delay(200);
     if (digitalRead(upPin) == HIGH) {
@@ -321,10 +325,10 @@ void selectDifficult() {
       speedGame = 100;
     }
     displayMatrix.displayClear();
-    Serial.println(difficult);
-    if (digitalRead(rightPin) == HIGH) {
+    //Serial.println(difficult);
+    if (digitalRead(startPin) == HIGH) {
       selectionDifficult = true;
-      return;
+      //return;
     }
   }
 
