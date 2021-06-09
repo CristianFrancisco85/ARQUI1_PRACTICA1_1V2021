@@ -1,199 +1,196 @@
-#define MAX_BODY_LENGTH 12
-#define GAME_AREA_WIDTH 9
-#define GAME_AREA_HEIGHT 16
-#define GAME_OVER_TIME 3000
-#define DIRECTION_UP 0
-#define DIRECTION_RIGHT 1
-#define DIRECTION_DOWN 2
-#define DIRECTION_LEFT 3
+/*DEFINICIONES PARA EL JUEGO "SNAKE"*/
+#define largoSerpiente 24
+/*DIMENSIONES DE LA MATRIZ DE JUEGO*/
+#define altoZona 9
+#define anchoZona 16
+/*TIEMPO PARA REINICIAR EL JUEGO*/
+#define tiempoFinJuego 3000
+/*CONTROLES PARA EL JUEGO*/
+#define arriba 0
+#define derecha 1
+#define abajo 2
+#define izquierda 3
 
-/*DRIVER CONSTANTS (ALSO FOR THE MD_Parola MATRIX)*/
+/*CONSTANTES PARA LOS OBJETOS MATRICES (INCLUIDA MD_Parola MATRIX)*/
 const int MAX_DEVICES = 2;
 const int DIN = 2;
 const int LOAD = 3;
 const int CLK = 4;
 
-/*OBJECT FOR GAME MATRIX*/
-LedControl lc = LedControl(DIN, CLK, LOAD, MAX_DEVICES);
-/*STRUCT TO CREATE A COORDENATE IN THE MATRIX (X,Y)*/
+/*MATRIZ PARA EL JUEGO*/
+LedControl matrizJuego = LedControl(DIN, CLK, LOAD, MAX_DEVICES);
+/*STRUCT PARA CREAR COORDENADAS EN EL JUEGO(X,Y)*/
 typedef struct p {
   int x;
   int y;
-} Position;
-/*OBJECT FOR BODY SIZE MAX 12 LEDS*/
-Position body[MAX_BODY_LENGTH];
-int lastInput;
-int head;
-int tail;
-int bodyLength;
-int direction;
-/*OBJECT FOR SPAWN THE FOOD (X,Y)*/
-Position food;
-/*VARIABLE FOR GAMEOVER (HIT ITSELF)*/
-int gameover = 1;
-/*VARIABLE FOR GAMEOVER (HIT THE CORNERS)*/
-int gameover2 = 1;
-/*SCORE OF GAME*/
-int score;
-int elapsedTime;
-bool readInput;
-unsigned long previousTime;
-/*CHANGE OF MATRIX (0,1)*/
-bool cambio = false;
+} Coordenada;
+/*OBJETO COORDENADA COMO ARREGLO PARA OBTENER EL TAMAÑO DE LA SNAKE*/
+Coordenada cuerpo[largoSerpiente];
+/*PARTE INICIAL Y FINAL DE LA SERPIETNE*/
+int cabeza;
+int cola;
+/*LONGITUD DE LA SERPIENTE*/
+int largoCuerpo;
+/*DIRECCION HACIA DONDE SE DIRIGE LA SERPIENTE*/
+int direccion;
+/*OVJETO PARA APARECER COMIDA CON COORDENADAS (X,Y)*/
+Coordenada comida;
+/*FIN DE JUEGO Y REINCIAR EL PROCESO (GOLPEARSE A SI MISMO O CHOCAR CON LAS PAREDES)*/
+int finJuego = 1;
+/*ENTRAR EN EL TEXTO DE FIN DE JUEGO Y MOSTRAR PUNTUACION*/
+int finJuego2 = 1;
+/*PUNTAJE DE LA PARTIDA*/
+int puntaje;
+/*VARIABLES PARA EL TIEMPO DE PAUSA Y VELOCIDAD DEL JUEGO*/
+int tiempoTranscurrido;
+unsigned long tiempoAnterior;
+/*VARIABLES PARA LA LECTURA DE CONTROLES*/
+int ultimoMovimiento;
+bool leerMovimiento;
 
 /*SETTING THE LED ON OR OFF AND CHEKING THE CORNERS OF THE MATRIX*/
-void setPixel(int row, int column) {
-  /*LIMIT OF HEIGHT*/
-  if (row == 8) {
-    gameover2 = 0;
-    gameover = GAME_OVER_TIME;
-    return;
-  }
-  /*LIMIT OF WIDTH*/
- if (column == 8 and cambio == false) {
-    if(body[head].x ==8){
-      gameover2 = 0;
-      gameover = GAME_OVER_TIME;
-      return;
-    }
-
-  } else if (column == 7 and cambio == true) {
-    if(body[head].x ==7){
-      gameover2 = 0;
-      gameover = GAME_OVER_TIME;
-      return;
-    }
-  }
-  /*CHANGE OF MATRIX (ALREADY 2 MATRIX IN THE DRIVER)*/
-  if (column < 8 ) {
-    lc.setLed(0, row, column, true);
-    cambio = false;
+void colocarPixel(int fila, int columna) {
+  if (columna < 8 ) {
+    matrizJuego.setLed(0, fila, columna, true);
   }
   else {
-    lc.setLed(1, row, column - 8, true);
-    cambio = true;
-  }   
+    matrizJuego.setLed(1, fila, columna - 8, true);
+  }
 }
-/*CHECK IF THE POSITION OF FOOD IS CORRECTLY SPAWN*/
-bool foodPositionIsValid() {
-  /*POSITION OF FOOD NEED TO BE IN COORDENATES OF X>0 AND Y>0*/
-  if (food.x < 0 || food.y < 0) {
+/*METODO PARA VERIFICAR LA POSICION DE LA COMIDA*/
+bool validarComida() {
+  /*NO SE ACEPTAN NUMEROS NEGATIVOS*/
+  if (comida.x < 0 || comida.y < 0) {
     return false;
   }
-  /*CHEKING THE SIZE AND POSITION OF THE SNAKE*/
-  for (int i = tail; i <= (head > tail ? head : MAX_BODY_LENGTH - 1); i++) {
-    if (body[i].x == food.x && body[i].y == food.y) {
+  /*NO SE ACEPTA QUE APAREZCAN ENCIMA DE LA SERPIENTE*/
+  for (int i = cola; i <= (cabeza > cola ? cabeza : largoSerpiente - 1); i++) {
+    if (cuerpo[i].x == comida.x && cuerpo[i].y == comida.y) {
       return false;
     }
   }
-  /*CHECK IF THE SNAKE IS INVERTED*/
-  if (head < tail) {
-    for (int i = 0; i <= head; i++) {
-      if (body[i].x == food.x && body[i].y == food.y) {
+  if (cabeza < cola) {
+    for (int i = 0; i <= cabeza; i++) {
+      if (cuerpo[i].x == comida.x && cuerpo[i].y == comida.y) {
         return false;
       }
     }
   }
-
   return true;
 }
-/*CHECK IF THE HEAD OF THE SNAKE ISN'T HIT THE BODY OF ITSELF*/
-void checkGameover() {
-  for (int i = tail; i <= (head > tail ? head - 1 : MAX_BODY_LENGTH - 1); i++)  {
-    if (body[head].x == body[i].x && body[head].y == body[i].y) {
-      /*VARIABLES THAT CHANGE FOR ENTER IN THE GAME OVER*/
-      gameover2 = 0;
-      gameover = GAME_OVER_TIME;
+/*SE VERIFICA QUE NO HAYA CHOCADO LA SERPIENTE CON ELLA MISMA*/
+void verificarJuego() {
+  for (int i = cola; i <= (cabeza > cola ? cabeza - 1 : largoSerpiente - 1); i++)  {
+    if (cuerpo[cabeza].x == cuerpo[i].x && cuerpo[cabeza].y == cuerpo[i].y) {
+      finJuego2 = 0;
+      finJuego = tiempoFinJuego;
       return;
     }
   }
-  /*CHECK IF THE SNAKE IS INVERTED*/
-  if (head < tail) {
-    for (int i = 0; i < head; i++) {
-      if (body[head].x == body[i].x && body[head].y == body[i].y) {
-        /*VARIABLES THAT CHANGE FOR ENTER IN THE GAME OVER*/
-        gameover2 = 0;
-        gameover = GAME_OVER_TIME;
+  if (cabeza < cola) {
+    for (int i = 0; i < cabeza; i++) {
+      if (cuerpo[cabeza].x == cuerpo[i].x && cuerpo[cabeza].y == cuerpo[i].y) {
+        finJuego2 = 0;
+        finJuego = tiempoFinJuego;
         return;
       }
     }
   }
 
 }
-/*SPAWN FOOD IN THE MATRIX AREA*/
-void spawnFood() {
-  while (!foodPositionIsValid()) {
-    /*CREATE THE RANDOM COORDENATE AND CREATE THE OBJECT*/
-    food = { random(GAME_AREA_WIDTH - 1), random(GAME_AREA_HEIGHT) };
+/*COLOCAR LA COMIDA EN LA MATRIZ DEL JUEGO*/
+void aparecerComida() {
+  while (!validarComida()) {
+    /*LIMITES DE LA ZONA SON 15 PARA LA ANCHURA (0-15) Y 7 PARA LA ALTURA (0-7)*/
+    comida = { random(altoZona - 1), random(anchoZona) };
   }
 }
 
-void draw() {
-
-  for (int i = tail; i <= (head > tail ? head : MAX_BODY_LENGTH - 1); i++) {
-    setPixel(body[i].x, body[i].y);
+void dibujar() {
+  /*DIBUJAR EL CUERPO DE LA SERPIENTE*/
+  for (int i = cola; i <= (cabeza > cola ? cabeza : largoSerpiente - 1); i++) {
+    colocarPixel(cuerpo[i].x, cuerpo[i].y);
     delay(5);
   }
-
-  if (head < tail)   {
-    for (int i = 0; i <= head; i++) {
-      setPixel(body[i].x, body[i].y);
+  if (cabeza < cola)   {
+    for (int i = 0; i <= cabeza; i++) {
+      colocarPixel(cuerpo[i].x, cuerpo[i].y);
       delay(5);
     }
   }
-
-  lc.shutdown(0, false);
-  lc.setIntensity(0, 15);  // entre 0 y 7 // lc.setIntensity(1, 15);
-  lc.clearDisplay(0);  // entre 0 y 7 //  lc.clearDisplay(1);
-
-  lc.shutdown(1, false);
-  lc.setIntensity(1, 15);  // entre 0 y 7 // lc.setIntensity(1, 15);
-  lc.clearDisplay(1);  // entre 0 y 7 //  lc.clearDisplay(1);
-
-  setPixel(food.x, food.y);
+  /*REINICIAR MATRIZ 0*/
+  matrizJuego.shutdown(0, false);
+  matrizJuego.setIntensity(0, 15);
+  matrizJuego.clearDisplay(0);
+  /*REINICIAR MATRIZ 1*/
+  matrizJuego.shutdown(1, false);
+  matrizJuego.setIntensity(1, 15);
+  matrizJuego.clearDisplay(1);
+  /*DIBUJAR LA COMIDA EN LA MATRIZ*/
+  colocarPixel(comida.x, comida.y);
   delay(5);
 
 }
 
-void move()  {
-  tail = tail + 1 == MAX_BODY_LENGTH ? 0 : tail + 1;
-  Position prevHead = body[head];
-  head = head + 1 == MAX_BODY_LENGTH ? 0 : head + 1;
-  body[head] = { prevHead.x + (direction == DIRECTION_LEFT ? -1 : (direction == DIRECTION_RIGHT ? 1 : 0)), prevHead.y + (direction == DIRECTION_UP ? -1 : (direction == DIRECTION_DOWN ? 1 : 0)) };
-  body[head].x = body[head].x < 0 ? GAME_AREA_WIDTH - 1 : (body[head].x >= GAME_AREA_WIDTH ? 0 : body[head].x);
-  body[head].y = body[head].y < 0 ? GAME_AREA_HEIGHT - 1 : (body[head].y >= GAME_AREA_HEIGHT ? 0 : body[head].y);
-}
+void mover()  {
+  cola = cola + 1 == largoSerpiente ? 0 : cola + 1;
+  Coordenada prevcabeza = cuerpo[cabeza];
+  cabeza = cabeza + 1 == largoSerpiente ? 0 : cabeza + 1;
+  cuerpo[cabeza] = { prevcabeza.x + (direccion == izquierda ? -1 : (direccion == derecha ? 1 : 0)), prevcabeza.y + (direccion == arriba ? -1 : (direccion == abajo ? 1 : 0)) };
+  //cuerpo[cabeza].x = cuerpo[cabeza].x < 0 ? altoZona - 1 : (cuerpo[cabeza].x >= altoZona ? 0 : cuerpo[cabeza].x);
+  cuerpo[cabeza].y = cuerpo[cabeza].y < 0 ? anchoZona - 1 : (cuerpo[cabeza].y >= anchoZona ? 0 : cuerpo[cabeza].y);
+  
+  /*CONDICIONES PARA PERDER EL JUEGO CUANDO SE SALGA DE LOS LIMITES DE LA ZONA PARA JUGAR*/
+  if (cuerpo[cabeza].x < 0 or cuerpo[cabeza].x >= altoZona) {
+    finJuego2 = 0;
+    finJuego = tiempoFinJuego;
+    return;
+  } else if (cuerpo[cabeza].y == 8 and prevcabeza.y == 7) {
+    finJuego2 = 0;
+    finJuego = tiempoFinJuego;
+    return;
+  } else if(cuerpo[cabeza].y == 7 and prevcabeza.y == 8){
+    finJuego2 = 0;
+    finJuego = tiempoFinJuego;
+    return;
+  }
 
-void eat() {
-  if (body[head].x == food.x && body[head].y == food.y)  {
-    if (bodyLength < MAX_BODY_LENGTH)    {
-      bodyLength++;
-      tail--;
-      if (tail < 0) tail = MAX_BODY_LENGTH - 1;
+}
+/*METODO PARA ALIMENTAR Y HACER CRECER A LA SERPIENTE*/
+void comer() {
+  /*SE VALIDA QUE LA CABEZA CRUCE POR ENCIMA DE LA COMIDA*/
+  if (cuerpo[cabeza].x == comida.x && cuerpo[cabeza].y == comida.y)  {
+    if (largoCuerpo < largoSerpiente)    {
+      /*SINO SE HA ALCANZADO EL LARGO MAXIMO, SE AUMENTA*/
+      largoCuerpo++;
+      cola--;
+      if (cola < 0) cola = largoSerpiente - 1;
     }
-    score++;
-    food = { -1, -1 };
-    spawnFood();
+    /*SE AUMENTA EL PUNTAJE*/
+    puntaje++;
+    /*COMIDA INVALIDA PARA GENERAR UNA POSICION AL AZAR*/
+    comida = { -1, -1 };
+    /*APARECE NUEVA COMIDA*/
+    aparecerComida();
   }
 }
 
-void reset() {
-  /*CREATE DEFAUT SNAKE (SIZE 2 LEDS)*/
-  body[0] = { 1, 1 };
-  body[1] = { 1, 2 };
-  /*
-    body[2] = { 1,3 };
-    body[3] = { 1,4 };
-    body[4] = { 1,5 };
-    body[5] = { 1,6 };
-  */
-  bodyLength = 2;
-  head = 1;
-  tail = 0;
-  direction = DIRECTION_DOWN;
-  food = { -1, -1};
-  gameover = 0;
-  score = 0;
-  spawnFood();
-  readInput = true;
+void reiniciar() {
+  /*TAMAÑO DEFAULT DE LA SERPIENTE "2"*/
+  cuerpo[0] = { 1, 1 };
+  cuerpo[1] = { 1, 2 };
+  largoCuerpo = 2;
+  cabeza = 1;
+  /*ELEMENTOS EN COLA 0*/
+  cola = 0;
+  direccion = abajo;
+  /*COMIDA AL AZAR*/
+  comida = { -1, -1};
+  /*REINICIAR VARIABLE DE FIN DE JUEGO*/
+  finJuego = 0;
+  /*REINICIAR PUNTAJE*/
+  puntaje = 0;
+  /*APARECE LA NUEVA COMIDA*/
+  aparecerComida();
+  leerMovimiento = true;
 }
