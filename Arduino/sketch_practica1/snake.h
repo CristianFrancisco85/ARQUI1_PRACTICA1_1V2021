@@ -47,7 +47,8 @@ unsigned long tiempoAnterior;
 /*VARIABLES PARA LA LECTURA DE CONTROLES*/
 int ultimoMovimiento;
 bool leerMovimiento;
-
+/*VELOCIDAD DEL JUEGO*/
+int velocidadJuego;
 /*SETTING THE LED ON OR OFF AND CHEKING THE CORNERS OF THE MATRIX*/
 void colocarPixel(int fila, int columna) {
   if (columna < 8 ) {
@@ -102,7 +103,7 @@ void verificarJuego() {
 void aparecerComida() {
   while (!validarComida()) {
     /*LIMITES DE LA ZONA SON 15 PARA LA ANCHURA (0-15) Y 7 PARA LA ALTURA (0-7)*/
-    comida = { random(altoZona - 1), random(anchoZona) };
+    comida = { random(1, altoZona - 2), random(anchoZona) };
   }
 }
 
@@ -139,21 +140,26 @@ void mover()  {
   cuerpo[cabeza] = { prevcabeza.x + (direccion == izquierda ? -1 : (direccion == derecha ? 1 : 0)), prevcabeza.y + (direccion == arriba ? -1 : (direccion == abajo ? 1 : 0)) };
   //cuerpo[cabeza].x = cuerpo[cabeza].x < 0 ? altoZona - 1 : (cuerpo[cabeza].x >= altoZona ? 0 : cuerpo[cabeza].x);
   cuerpo[cabeza].y = cuerpo[cabeza].y < 0 ? anchoZona - 1 : (cuerpo[cabeza].y >= anchoZona ? 0 : cuerpo[cabeza].y);
-  
+
   /*CONDICIONES PARA PERDER EL JUEGO CUANDO SE SALGA DE LOS LIMITES DE LA ZONA PARA JUGAR*/
-  if (cuerpo[cabeza].x < 0 or cuerpo[cabeza].x >= altoZona) {
-    finJuego2 = 0;
-    finJuego = tiempoFinJuego;
-    return;
-  } else if (cuerpo[cabeza].y == 8 and prevcabeza.y == 7) {
-    finJuego2 = 0;
-    finJuego = tiempoFinJuego;
-    return;
-  } else if(cuerpo[cabeza].y == 7 and prevcabeza.y == 8){
+  if (cuerpo[cabeza].x < 0 || cuerpo[cabeza].x > altoZona - 2) {
     finJuego2 = 0;
     finJuego = tiempoFinJuego;
     return;
   }
+  delay(5);
+  if (cuerpo[cabeza].y == 8 && prevcabeza.y == 7) {
+    finJuego2 = 0;
+    finJuego = tiempoFinJuego;
+    return;
+  }
+  delay(5);
+  if (cuerpo[cabeza].y == 7 && prevcabeza.y == 8) {
+    finJuego2 = 0;
+    finJuego = tiempoFinJuego;
+    return;
+  }
+  delay(5);
 
 }
 /*METODO PARA ALIMENTAR Y HACER CRECER A LA SERPIENTE*/
@@ -166,6 +172,10 @@ void comer() {
       cola--;
       if (cola < 0) cola = largoSerpiente - 1;
     }
+    velocidadJuego = velocidadJuego - 20;
+    if (velocidadJuego <= 75) {
+      velocidadJuego = 75;
+    }
     /*SE AUMENTA EL PUNTAJE*/
     puntaje++;
     /*COMIDA INVALIDA PARA GENERAR UNA POSICION AL AZAR*/
@@ -177,8 +187,17 @@ void comer() {
 
 void reiniciar() {
   /*TAMAÑO DEFAULT DE LA SERPIENTE "2"*/
-  cuerpo[0] = { 1, 1 };
-  cuerpo[1] = { 1, 2 };
+  /*APARICION RANDOM EN LA PANTALLA LED*/
+  int aparicionY  = random(0, 8);
+  int aparicionX = random(0, 2);
+  if (aparicionX == 0) {
+    cuerpo[0] = { aparicionY, 0 };
+    cuerpo[1] = { aparicionY, 1 };
+  } else {
+    cuerpo[0] = { aparicionY, 8 };
+    cuerpo[1] = { aparicionY, 9 };
+  }
+
   largoCuerpo = 2;
   cabeza = 1;
   /*ELEMENTOS EN COLA 0*/

@@ -32,8 +32,6 @@ int waitTime;
 bool changeFlag;
 /*nivel OF THE GAME*/
 int nivel;
-/*GAME SPEED*/
-int velocidadJuego;
 /*nivel SELECTED*/
 bool dificultad;
 /*TIMERS FOR finJuego TEXT*/
@@ -131,10 +129,17 @@ void textoFinJuego() {
       displayMatrix.setTextAlignment(PA_CENTER);
       displayMatrix.print(puntaje);
       delay(300);
-      displayMatrix.displayText("QUE MULA SOS", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
+      displayMatrix.displayText("GAME OVER YOUR SCORE IS:", PA_CENTER, 100, 0, PA_SCROLL_LEFT, PA_SCROLL_LEFT);
       displayMatrix.displayReset();
     }
   }
+  delay(200);
+  displayMatrix.displayReset();
+  //displayMatrix.displayText("*TP1 - GRUPO 10 - SECCION N*", PA_CENTER, 100, 0, PA_SCROLL_RIGHT, PA_SCROLL_RIGHT);
+  onGame = false;
+  changeFlag = true;
+  delay(200);
+  loop();
 }
 void textoPausa() {
   delay(700);
@@ -195,19 +200,27 @@ void gameMode() {
     /*LECTURA DE LOS CONTROLES PARA JUGAR LA SNAKE*/
     if (leerMovimiento) {
       if (digitalRead(rightPin) && !ultimoMovimiento) {
-        direccion = abajo;
+        if (direccion != arriba) {
+          direccion = abajo;
+        }
         leerMovimiento = false;
       }
       if (digitalRead(leftPin) && !ultimoMovimiento) {
-        direccion = arriba;
+        if (direccion != abajo) {
+          direccion = arriba;
+        }
         leerMovimiento = false;
       }
       if (digitalRead(upPin) && !ultimoMovimiento) {
-        direccion = izquierda;
-        leerMovimiento = false;
+        if (direccion != derecha) {
+          direccion = izquierda;
+        }
+         leerMovimiento = false;
       }
       if (digitalRead(downPin) && !ultimoMovimiento) {
-        direccion = derecha;
+        if (direccion != izquierda) {
+          direccion = derecha;
+        }
         leerMovimiento = false;
       }
     }
@@ -297,7 +310,7 @@ void changeToTextMode() {
 
 
 void selecionarDificultad() {
-  while (!dificultad) {
+  while (!dificultad and onGame) {
     displayMatrix.setTextAlignment(PA_CENTER);
     displayMatrix.print("0 " + String(nivel));
     delay(200);
