@@ -157,13 +157,17 @@ void textoPausa() {
 }
 /*SETUP SPEED*/
 void setupSpeed() {
-  if (digitalRead(LowSpeedPin) == LOW) {
+  if (digitalRead(LowSpeedPin) == HIGH) {
     textSpeed = 150;
     waitTime = 750;
   }
-  if (digitalRead(HighSpeedPin) == LOW) {
+  if (digitalRead(HighSpeedPin) == HIGH) {
     textSpeed = 50;
     waitTime = 250;
+  }
+  if(digitalRead(HighSpeedPin) == LOW && digitalRead(LowSpeedPin) == LOW){
+    textSpeed = 100;
+    waitTime = 500;
   }
 }
 /*SELECTION OF THE MODE THAT IS PRESENTED THE TEXT*/

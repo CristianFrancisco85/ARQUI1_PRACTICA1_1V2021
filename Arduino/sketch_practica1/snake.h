@@ -212,4 +212,5 @@ void reiniciar() {
   /*APARECE LA NUEVA COMIDA*/
   aparecerComida();
   leerMovimiento = true;
+  velocidadJuego=400;
 }
